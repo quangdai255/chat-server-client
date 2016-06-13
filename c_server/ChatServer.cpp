@@ -3,7 +3,7 @@
 // Author      : Duy Nguyen
 // Version     :
 // Copyright   : Open Source
-// Description : Hello World in C++, Ansi-style
+// Description : Chat Server in C++, Ansi-style
 //============================================================================
 
 //Tham khao: https://github.com/robelsharma/MultiClientChatRoom/blob/master/Server/Server/ServerManager.cpp
@@ -29,7 +29,7 @@ using namespace std;
 //----------------------------------------
 
 //----Cac gia tri define----
-#define BACKLOG 10
+#define BACKLOG 50
 //----------------------------------------
 
 //----Global Variables----
@@ -38,7 +38,21 @@ int hostPort = 9001;
 pthread_mutex_t myMutex = PTHREAD_MUTEX_INITIALIZER;
 //----------------------------------------
 
-
+//Xu ly command cho tung ket noi con
+void commandHandler(int clientSock, char* cmd)
+{
+	switch(cmd)
+	{
+		case "USER":
+		case "CREA":
+		case "MESS":
+		case "LIST":
+		case "MOD" :
+		case "FILE":
+		default:
+			//do nothing;
+	}
+}
 
 void* requestHandler(void* sockfd)
 {
@@ -62,13 +76,12 @@ void* requestHandler(void* sockfd)
 
 		// Dong ket noi neu nhan dc yeu cau exit
 
-
 	int byte_sent = -1;
 	int byte_recv = -1;
 	int len;
 	int socket = (int)sockfd;
-	char *cmdBuffer[128];
-	char *dataBuffer[8192];
+	char cmdBuffer[128];
+	char dataBuffer[8192];
 	printf("Handle_request() with socket: %d\n",socket);
 
 	//Nhan thong diep hello, neu ko co thong diep nay thi se tu tat
@@ -99,9 +112,9 @@ void* requestHandler(void* sockfd)
 
 	//else -> ok ngon lanh, cho nhan command tu client
 	// "Giu nguyen ket noi nay"
-	while(true)
+	while(recv(socket,cmdBuffer,sizeof(cmdBuffer),0) != 0)
 	{
-
+		commandHandler(socket, cmdBuffer);
 	}
 
 	EXIT: cout << "Client exit\n";
@@ -112,9 +125,6 @@ int acceptorLoop(char *hostIP, int hostPort)
 {
 	//Nguyen cai nay se chay trong 1 process!!!
 	// fork(); !!!
-	//while(true)
-	//Ma gia
-	//Tao socket(IP,Port)
 	int retcode;
 	int server_socket;
 	struct addrinfo hints, *res;
@@ -156,26 +166,42 @@ int acceptorLoop(char *hostIP, int hostPort)
 
 	listen(server_socket, BACKLOG);
 	int client_socket;
+	struct sockaddr_storage client_addr;
+	socklen_t len;
 
 	pthread_t thread_id;
 	//Dem so luong ket noi
 	int count = 0;
 	//Accept ket noi tu day
-	while(true)
+	while((client_socket = accept(server_socket, (struct sockaddr*)&client_addr, &len)) != -1)
 	{
-		struct sockaddr_storage client_addr;
-		socklen_t len;
-		client_socket = accept(server_socket, (struct sockaddr*)&client_addr, &len);
-
-		if(client_socket < 0)
-		{
-			printf("Failed at accept()\n");
-			exit(-1);
-
-		}
+//		if(client_socket < 0)
+//		{
+//			printf("Failed at accept()\n");
+//			exit(-1);
+//
+//		}
 		printf("Client #%d connected\n",count++);
 
 		printf("Ticket client socket: %d\n",client_socket);
+
+		// Lay dia chi IP, port cua ben client de luu lai
+		// De tao cac chat session sau nay
+
+//		len = sizeof addr;
+//		getpeername(new_socket, (struct sockaddr*)&addr, &len);
+//
+//		// deal with IPv4:
+//		if (addr.ss_family == AF_INET) {
+//			struct sockaddr_in *s = (struct sockaddr_in *)&addr;
+//			port = ntohs(s->sin_port);
+//			inet_ntop(AF_INET, &s->sin_addr, ipstr, sizeof ipstr);
+//		}
+//
+//		printf("Peer IP address: %s\n", ipstr);
+
+		//----------------------------------------------
+
 
 		//Moi Connection moi se la 1 socket/thread/connection
 			// => viet ham xu ly rieng tung socket (acceptHandler!!)
@@ -193,7 +219,11 @@ int acceptorLoop(char *hostIP, int hostPort)
 		pthread_join(thread_id, NULL);
 	};
 
-
+	if(client_socket == -1)
+	{
+		cout << "Error when accepting new connections\n";
+		return -1;
+	}
 
 
 
